@@ -25,6 +25,7 @@ A casual web-based pet simulation game where users care for a clockwork familiar
 - Node.js (v14 or higher)
 - MySQL (v5.7 or higher)
 - npm or yarn
+- GitHub account (for OAuth)
 
 ### Installation
 
@@ -38,29 +39,38 @@ A casual web-based pet simulation game where users care for a clockwork familiar
    npm install
    ```
 
-3. **Set up the database**
+3. **Set up GitHub OAuth** (See `GITHUB_OAUTH_SETUP.md` for detailed instructions)
+   - Go to https://github.com/settings/developers
+   - Create a new OAuth App
+   - Copy Client ID and Client Secret
+
+4. **Set up the database**
    - Create a MySQL database (or use the provided schema)
-   - Update your `.env` file with database credentials:
+   - Update your `.env` file:
    ```bash
-   cp .env.example .env
+   cp env.template .env
    ```
-   - Edit `.env` and add your database credentials:
+   - Edit `.env` and add your credentials:
    ```
    DB_HOST=localhost
    DB_USER=root
    DB_PASSWORD=your_password
    DB_NAME=elemental_familiar
    JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
+   SESSION_SECRET=your_session_secret_here
+   GITHUB_CLIENT_ID=your_github_client_id
+   GITHUB_CLIENT_SECRET=your_github_client_secret
+   GITHUB_CALLBACK_URL=http://localhost:3000/auth/github/callback
    PORT=3000
    ```
 
-4. **Initialize the database**
+5. **Initialize the database**
    ```bash
    mysql -u root -p < database/schema.sql
    ```
    Or import the schema using your MySQL client.
 
-5. **Start the server**
+6. **Start the server**
    ```bash
    npm start
    ```
@@ -69,8 +79,11 @@ A casual web-based pet simulation game where users care for a clockwork familiar
    npm run dev
    ```
 
-6. **Open your browser**
+7. **Open your browser**
    Navigate to `http://localhost:3000`
+   - Click "Sign in with GitHub"
+   - Authorize the app
+   - Start playing!
 
 ## Project Structure
 

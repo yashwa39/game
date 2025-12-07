@@ -2,16 +2,32 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2/promise');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const session = require('express-session');
+const passport = require('passport');
+const GitHubStrategy = require('passport-github2').Strategy;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true
+}));
 app.use(express.json());
 app.use(express.static('public'));
+
+// Session configuration
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'your_session_secret_change_this',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: process.env.NODE_ENV === 'production' }
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Database connection pool
 const pool = mysql.createPool({
@@ -24,7 +40,128 @@ const pool = mysql.createPool({
     queueLimit: 0
 });
 
-// JWT Authentication Middleware
+// Passport GitHub Strategy
+passport.use(new GitHubStrategy({
+    clientID: process.env.GITHUB_CLIENT_ID || 'your_github_client_id',
+    clientSecret: process.env.GITHUB_CLIENT_SECRET || 'your_github_client_secret',
+    callbackURL: process.env.GITHUB_CALLBACK_URL || "http://localhost:3000/auth/github/callback"
+},
+async (accessToken, refreshToken, profile, done) => {
+    try {
+        const githubId = profile.id;
+        const username = profile.username;
+        const email = profile.emails && profile.emails[0] ? profile.emails[0].value : null;
+        const avatar = profile.photos && profile.photos[0] ? profile.photos[0].value : null;
+
+        // Check if user exists
+        const [existingUsers] = await pool.execute(
+            'SELECT * FROM users WHERE github_id = ?',
+            [githubId]
+        );
+
+        let user;
+        if (existingUsers.length > 0) {
+            // Update existing user
+            user = existingUsers[0];
+            await pool.execute(
+                'UPDATE users SET username = ?, email = ?, avatar_url = ? WHERE github_id = ?',
+                [username, email, avatar, githubId]
+            );
+        } else {
+            // Create new user
+            const [result] = await pool.execute(
+                'INSERT INTO users (github_id, username, email, avatar_url, gears) VALUES (?, ?, ?, ?, 50)',
+                [githubId, username, email, avatar]
+            );
+            const [newUsers] = await pool.execute(
+                'SELECT * FROM users WHERE user_id = ?',
+                [result.insertId]
+            );
+            user = newUsers[0];
+        }
+
+        return done(null, user);
+    } catch (error) {
+        return done(error, null);
+    }
+}));
+
+passport.serializeUser((user, done) => {
+    done(null, user.user_id);
+});
+
+passport.deserializeUser(async (id, done) => {
+    try {
+        const [users] = await pool.execute('SELECT * FROM users WHERE user_id = ?', [id]);
+        done(null, users[0]);
+    } catch (error) {
+        done(error, null);
+    }
+});
+
+// Authentication Middleware
+const isAuthenticated = (req, res, next) => {
+    if (req.isAuthenticated()) {
+        req.userId = req.user.user_id;
+        return next();
+    }
+    res.status(401).json({ error: 'Authentication required' });
+};
+
+// ==================== GITHUB OAUTH ROUTES ====================
+
+app.get('/auth/github',
+    passport.authenticate('github', { scope: ['user:email'] })
+);
+
+app.get('/auth/github/callback',
+    passport.authenticate('github', { failureRedirect: '/' }),
+    async (req, res) => {
+        // Generate JWT token for API access
+        const token = jwt.sign(
+            { userId: req.user.user_id, username: req.user.username },
+            process.env.JWT_SECRET || 'your_super_secret_jwt_key_change_this_in_production',
+            { expiresIn: '7d' }
+        );
+
+        // Redirect to frontend with token
+        res.redirect(`/?token=${token}`);
+    }
+);
+
+app.get('/auth/logout', (req, res) => {
+    req.logout((err) => {
+        if (err) {
+            return res.status(500).json({ error: 'Logout failed' });
+        }
+        res.json({ message: 'Logged out successfully' });
+    });
+});
+
+app.get('/api/auth/status', (req, res) => {
+    if (req.isAuthenticated()) {
+        const token = jwt.sign(
+            { userId: req.user.user_id, username: req.user.username },
+            process.env.JWT_SECRET || 'your_super_secret_jwt_key_change_this_in_production',
+            { expiresIn: '7d' }
+        );
+        res.json({
+            authenticated: true,
+            user: {
+                userId: req.user.user_id,
+                username: req.user.username,
+                email: req.user.email,
+                avatar: req.user.avatar_url,
+                gears: req.user.gears
+            },
+            token
+        });
+    } else {
+        res.json({ authenticated: false });
+    }
+});
+
+// JWT Authentication Middleware (for API calls)
 const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -41,102 +178,6 @@ const authenticateToken = async (req, res, next) => {
         return res.status(403).json({ error: 'Invalid or expired token' });
     }
 };
-
-// ==================== AUTHENTICATION ROUTES ====================
-
-// Register new user
-app.post('/api/register', async (req, res) => {
-    try {
-        const { username, email, password } = req.body;
-
-        if (!username || !email || !password) {
-            return res.status(400).json({ error: 'Username, email, and password are required' });
-        }
-
-        // Check if user already exists
-        const [existingUsers] = await pool.execute(
-            'SELECT user_id FROM users WHERE username = ? OR email = ?',
-            [username, email]
-        );
-
-        if (existingUsers.length > 0) {
-            return res.status(400).json({ error: 'Username or email already exists' });
-        }
-
-        // Hash password
-        const passwordHash = await bcrypt.hash(password, 10);
-
-        // Create user
-        const [result] = await pool.execute(
-            'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
-            [username, email, passwordHash]
-        );
-
-        const userId = result.insertId;
-
-        // Generate JWT token
-        const token = jwt.sign(
-            { userId, username },
-            process.env.JWT_SECRET || 'your_super_secret_jwt_key_change_this_in_production',
-            { expiresIn: '7d' }
-        );
-
-        res.status(201).json({
-            message: 'User created successfully',
-            token,
-            user: { userId, username, email }
-        });
-    } catch (error) {
-        console.error('Registration error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// Login
-app.post('/api/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-
-        if (!username || !password) {
-            return res.status(400).json({ error: 'Username and password are required' });
-        }
-
-        // Find user
-        const [users] = await pool.execute(
-            'SELECT user_id, username, email, password_hash FROM users WHERE username = ?',
-            [username]
-        );
-
-        if (users.length === 0) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        const user = users[0];
-
-        // Verify password
-        const isValidPassword = await bcrypt.compare(password, user.password_hash);
-
-        if (!isValidPassword) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        // Generate JWT token
-        const token = jwt.sign(
-            { userId: user.user_id, username: user.username },
-            process.env.JWT_SECRET || 'your_super_secret_jwt_key_change_this_in_production',
-            { expiresIn: '7d' }
-        );
-
-        res.json({
-            message: 'Login successful',
-            token,
-            user: { userId: user.user_id, username: user.username, email: user.email }
-        });
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
 
 // ==================== PET ROUTES ====================
 
@@ -556,7 +597,7 @@ app.get('/api/user', authenticateToken, async (req, res) => {
         const userId = req.userId;
 
         const [users] = await pool.execute(
-            'SELECT user_id, username, email, gears, created_at FROM users WHERE user_id = ?',
+            'SELECT user_id, username, email, gears, avatar_url, created_at FROM users WHERE user_id = ?',
             [userId]
         );
 
@@ -574,6 +615,6 @@ app.get('/api/user', authenticateToken, async (req, res) => {
 // Start server
 app.listen(PORT, () => {
     console.log(`Elemental Familiar server running on http://localhost:${PORT}`);
+    console.log(`GitHub OAuth enabled - make sure GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are set in .env`);
     console.log(`Make sure your database is set up and .env file is configured!`);
 });
-

@@ -1,5 +1,5 @@
 // API Base URL
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = '/api';
 
 // State management
 let authToken = localStorage.getItem('authToken');
@@ -16,10 +16,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // Start background music (optional, can be muted)
     startBackgroundMusic();
     
-    if (authToken) {
+    // Check for token in URL (from GitHub OAuth callback)
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    
+    if (token) {
+        authToken = token;
+        localStorage.setItem('authToken', authToken);
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        checkAuthAndLoadGame();
+    } else if (authToken) {
         checkAuthAndLoadGame();
     } else {
-        showScreen('auth-screen');
+        checkAuthStatus();
     }
 });
 
@@ -31,8 +41,6 @@ function startBackgroundMusic() {
         backgroundMusic = new Audio('/assets/audio/music/background_loop.mp3');
         backgroundMusic.loop = true;
         backgroundMusic.volume = 0.3;
-        // Don't autoplay - user interaction required
-        // backgroundMusic.play().catch(() => {});
     } catch (error) {
         console.log('Background music not available');
     }
@@ -50,20 +58,6 @@ function toggleMusic() {
 
 // Event Listeners
 function setupEventListeners() {
-    // Auth tabs
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const tab = e.target.dataset.tab;
-            switchAuthTab(tab);
-        });
-    });
-
-    // Login form
-    document.getElementById('login-form').addEventListener('submit', handleLogin);
-    
-    // Register form
-    document.getElementById('register-form').addEventListener('submit', handleRegister);
-    
     // Adoption
     document.getElementById('adopt-btn').addEventListener('click', handleAdopt);
     document.getElementById('pet-name-input').addEventListener('input', validateAdoption);
@@ -108,80 +102,23 @@ function setupEventListeners() {
 }
 
 // Auth Functions
-async function handleLogin(e) {
-    e.preventDefault();
-    const username = document.getElementById('login-username').value;
-    const password = document.getElementById('login-password').value;
-    const errorEl = document.getElementById('login-error');
-
+async function checkAuthStatus() {
     try {
-        const response = await fetch(`${API_BASE}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
-
+        const response = await fetch(`${API_BASE}/auth/status`);
         const data = await response.json();
-
-        if (!response.ok) {
-            errorEl.textContent = data.error || 'Login failed';
-            return;
-        }
-
-        authToken = data.token;
-        localStorage.setItem('authToken', authToken);
-        currentUser = data.user;
         
-        await checkAuthAndLoadGame();
-    } catch (error) {
-        errorEl.textContent = 'Network error. Please try again.';
-        console.error('Login error:', error);
-    }
-}
-
-async function handleRegister(e) {
-    e.preventDefault();
-    const username = document.getElementById('register-username').value;
-    const email = document.getElementById('register-email').value;
-    const password = document.getElementById('register-password').value;
-    const errorEl = document.getElementById('register-error');
-
-    try {
-        const response = await fetch(`${API_BASE}/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, email, password })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            errorEl.textContent = data.error || 'Registration failed';
-            return;
+        if (data.authenticated && data.token) {
+            authToken = data.token;
+            localStorage.setItem('authToken', authToken);
+            currentUser = data.user;
+            await checkAuthAndLoadGame();
+        } else {
+            showScreen('auth-screen');
         }
-
-        authToken = data.token;
-        localStorage.setItem('authToken', authToken);
-        currentUser = data.user;
-        
-        await loadSpecies();
-        showScreen('adoption-screen');
     } catch (error) {
-        errorEl.textContent = 'Network error. Please try again.';
-        console.error('Register error:', error);
+        console.error('Auth check error:', error);
+        showScreen('auth-screen');
     }
-}
-
-function switchAuthTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tab === tab);
-    });
-    
-    document.getElementById('login-form').classList.toggle('active', tab === 'login');
-    document.getElementById('register-form').classList.toggle('active', tab === 'register');
-    
-    document.getElementById('login-error').textContent = '';
-    document.getElementById('register-error').textContent = '';
 }
 
 // Game Functions
@@ -219,6 +156,7 @@ async function checkAuthAndLoadGame() {
         console.error('Auth check error:', error);
         localStorage.removeItem('authToken');
         authToken = null;
+        currentUser = null;
         showScreen('auth-screen');
     }
 }
@@ -361,6 +299,10 @@ function updateGameDisplay() {
 
     // Update user info
     document.getElementById('username-display').textContent = currentUser.username;
+    if (currentUser.avatar) {
+        const usernameEl = document.getElementById('username-display');
+        usernameEl.innerHTML = `<img src="${currentUser.avatar}" alt="${currentUser.username}" class="user-avatar" style="width: 24px; height: 24px; border-radius: 50%; vertical-align: middle; margin-right: 8px;"> ${currentUser.username}`;
+    }
     document.getElementById('gears-count').textContent = currentUser.gears;
     document.getElementById('shop-gears-count').textContent = currentUser.gears;
 
@@ -619,7 +561,6 @@ function playSound(type) {
         audio.src = soundPath;
         audio.volume = 0.5;
         audio.play().catch(err => {
-            // Silently fail if audio can't play (user interaction required, etc.)
             console.log(`Audio play failed: ${err.message}`);
         });
     } catch (error) {
@@ -627,7 +568,13 @@ function playSound(type) {
     }
 }
 
-function handleLogout() {
+async function handleLogout() {
+    try {
+        await fetch('/auth/logout');
+    } catch (error) {
+        console.error('Logout error:', error);
+    }
+    
     localStorage.removeItem('authToken');
     authToken = null;
     currentUser = null;
@@ -638,4 +585,3 @@ function handleLogout() {
 // Make functions available globally for onclick handlers
 window.purchaseItem = purchaseItem;
 window.toggleEquip = toggleEquip;
-

@@ -4,15 +4,17 @@
 CREATE DATABASE IF NOT EXISTS elemental_familiar;
 USE elemental_familiar;
 
--- Users Table
+-- Users Table (Updated for GitHub OAuth)
 CREATE TABLE IF NOT EXISTS users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
+    github_id VARCHAR(50) UNIQUE,
+    username VARCHAR(50) NOT NULL,
+    email VARCHAR(100),
+    avatar_url VARCHAR(255),
     gears INT DEFAULT 50,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_github_id (github_id)
 );
 
 -- Species/Elements Table (for different pet types)
