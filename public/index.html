@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elemental Familiar - The Clockwork Pet</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Login/Register Screen -->
+        <div id="auth-screen" class="screen active">
+            <div class="auth-container">
+                <h1>⚙️ Elemental Familiar</h1>
+                <p class="subtitle">The Clockwork Pet</p>
+                
+                <div id="auth-tabs">
+                    <button class="tab-btn active" data-tab="login">Login</button>
+                    <button class="tab-btn" data-tab="register">Register</button>
+                </div>
+
+                <form id="login-form" class="auth-form active">
+                    <input type="text" id="login-username" placeholder="Username" required>
+                    <input type="password" id="login-password" placeholder="Password" required>
+                    <button type="submit">Login</button>
+                    <p id="login-error" class="error-message"></p>
+                </form>
+
+                <form id="register-form" class="auth-form">
+                    <input type="text" id="register-username" placeholder="Username" required>
+                    <input type="email" id="register-email" placeholder="Email" required>
+                    <input type="password" id="register-password" placeholder="Password" required>
+                    <button type="submit">Register</button>
+                    <p id="register-error" class="error-message"></p>
+                </form>
+            </div>
+        </div>
+
+        <!-- Adoption Screen -->
+        <div id="adoption-screen" class="screen">
+            <div class="adoption-container">
+                <h1>Adopt Your Familiar</h1>
+                <p>Choose your pet's name and element:</p>
+                
+                <input type="text" id="pet-name-input" placeholder="Enter pet name" maxlength="20">
+                
+                <div id="species-selection">
+                    <!-- Species will be loaded here -->
+                </div>
+                
+                <button id="adopt-btn" disabled>Adopt Familiar</button>
+                <p id="adoption-error" class="error-message"></p>
+            </div>
+        </div>
+
+        <!-- Main Game Screen -->
+        <div id="game-screen" class="screen">
+            <header class="game-header">
+                <div class="user-info">
+                    <span id="username-display"></span>
+                    <span class="gears-display">⚙️ <span id="gears-count">0</span></span>
+                </div>
+                <nav>
+                    <button id="shop-btn" class="nav-btn">Shop</button>
+                    <button id="inventory-btn" class="nav-btn">Inventory</button>
+                    <button id="music-toggle-btn" class="nav-btn" title="Toggle Music">🔊</button>
+                    <button id="logout-btn" class="nav-btn">Logout</button>
+                </nav>
+            </header>
+
+            <main class="game-main">
+                <div class="pet-container">
+                    <div class="pet-habitat">
+                        <div id="pet-sprite" class="pet-sprite">
+                            <div class="pet-placeholder">⚙️</div>
+                        </div>
+                        <div id="equipped-items" class="equipped-items"></div>
+                    </div>
+                    
+                    <div class="pet-info">
+                        <h2 id="pet-name">Your Familiar</h2>
+                        <p id="pet-species" class="pet-species"></p>
+                        
+                        <div class="stats">
+                            <div class="stat-bar">
+                                <label>Energy</label>
+                                <div class="bar-container">
+                                    <div id="energy-bar" class="stat-bar-fill" style="width: 100%"></div>
+                                    <span id="energy-value" class="stat-value">100</span>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-bar">
+                                <label>Tension (Mood)</label>
+                                <div class="bar-container">
+                                    <div id="tension-bar" class="stat-bar-fill" style="width: 100%"></div>
+                                    <span id="tension-value" class="stat-value">100</span>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-bar">
+                                <label>Maintenance</label>
+                                <div class="bar-container">
+                                    <div id="maintenance-bar" class="stat-bar-fill" style="width: 100%"></div>
+                                    <span id="maintenance-value" class="stat-value">100</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button id="feed-btn" class="action-btn">
+                        <span class="btn-icon">🍎</span>
+                        <span>Feed</span>
+                    </button>
+                    <button id="maintain-btn" class="action-btn">
+                        <span class="btn-icon">🔧</span>
+                        <span>Maintain</span>
+                    </button>
+                    <button id="play-btn" class="action-btn">
+                        <span class="btn-icon">🎮</span>
+                        <span>Play</span>
+                    </button>
+                </div>
+            </main>
+        </div>
+
+        <!-- Shop Screen -->
+        <div id="shop-screen" class="screen">
+            <div class="shop-container">
+                <h1>Shop</h1>
+                <div class="shop-header">
+                    <span class="gears-display">⚙️ <span id="shop-gears-count">0</span></span>
+                    <button id="close-shop-btn" class="close-btn">Close</button>
+                </div>
+                <div id="shop-items" class="shop-grid">
+                    <!-- Shop items will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory Screen -->
+        <div id="inventory-screen" class="screen">
+            <div class="inventory-container">
+                <h1>Inventory</h1>
+                <button id="close-inventory-btn" class="close-btn">Close</button>
+                <div id="inventory-items" class="inventory-grid">
+                    <!-- Inventory items will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+

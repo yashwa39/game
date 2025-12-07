@@ -1,0 +1,46 @@
+AUDIO ASSETS - ATTRIBUTION REQUIRED
+
+===========================================
+SOUND EFFECTS
+===========================================
+
+When you add sound effects, please include attribution:
+
+Recommended Sources:
+- Zapsplat.com (Free with account, requires attribution)
+- Freesound.org (CC0 or CC BY licensed)
+- Pixabay.com (Free for commercial use)
+
+Required SFX:
+- button_click.mp3 (or .wav, .ogg)
+- success.mp3
+- fail.mp3
+
+===========================================
+BACKGROUND MUSIC
+===========================================
+
+When you add background music, please include attribution:
+
+Recommended Sources:
+- Bensound.com (Royalty Free, requires attribution)
+- Incompetech.com (Kevin MacLeod, CC BY)
+- Pixabay.com (Free for commercial use)
+
+Required:
+- background_loop.mp3 (or .wav, .ogg) - Calming instrumental loop
+
+===========================================
+LICENSE NOTES
+===========================================
+
+Always verify the license for each asset:
+- CC0 = Public Domain (no attribution required, but appreciated)
+- CC BY = Creative Commons Attribution (attribution required)
+- Royalty Free = Usually requires attribution in credits
+
+Add attribution to:
+1. README.md (Credits section)
+2. Footer of index.html (optional)
+3. Game credits screen (if applicable)
+
